@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Courses">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>Ma Liste de Courses</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #fff; --fg: #171717; --muted: #737373; --faint: #a3a3a3;
+    --line: #e5e5e5; --line-soft: #f5f5f5; --accent: #10b981;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #fafafa; color: var(--fg);
+    display: flex; justify-content: center;
+    min-height: 100dvh;
+  }
+  .app {
+    width: 100%; max-width: 480px; min-height: 100dvh;
+    background: var(--bg); display: flex; flex-direction: column;
+    box-shadow: 0 0 40px rgba(0,0,0,.08);
+  }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(255,255,255,.92); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+    padding: max(20px, env(safe-area-inset-top)) 20px 16px 20px;
+  }
+  .head-row { display: flex; justify-content: space-between; align-items: center; }
+  h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
+  #summary { font-size: 14px; color: var(--muted); margin-top: 2px; }
+  .progress-wrap { text-align: right; }
+  #count { font-size: 12px; font-weight: 500; color: var(--faint); }
+  .progress { width: 96px; height: 6px; background: #e5e5e5; border-radius: 99px; margin-top: 6px; overflow: hidden; }
+  .progress > div { height: 100%; background: var(--accent); border-radius: 99px; transition: width .3s; }
+  .add-row { display: flex; gap: 8px; margin-top: 16px; }
+  .stepper {
+    display: flex; align-items: center; height: 44px; flex-shrink: 0;
+    border: 1px solid #d4d4d4; border-radius: 12px; overflow: hidden; background: #fff;
+  }
+  .stepper button {
+    width: 34px; height: 100%; border: none; background: none; color: var(--muted);
+    font-size: 18px; font-weight: 500; cursor: pointer;
+  }
+  .stepper button:active { background: #f5f5f5; color: var(--fg); }
+  #draft-qty { width: 40px; text-align: center; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  #draft-unit {
+    border: none; background: none; border-left: 1px solid var(--line);
+    font-size: 13px; font-weight: 600; color: var(--muted); padding: 0 6px; cursor: pointer;
+  }
+  #draft-input {
+    flex: 1; min-width: 0; height: 44px; padding: 0 16px;
+    border: 1px solid #d4d4d4; border-radius: 12px; font-size: 16px;
+  }
+  #draft-input:focus { outline: none; border-color: var(--fg); }
+  #add-btn {
+    height: 44px; padding: 0 18px; border: none; border-radius: 12px;
+    background: var(--fg); color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  #add-btn:disabled { opacity: .3; }
+  #add-btn:active { transform: scale(.95); }
+  .hint { font-size: 12px; color: var(--faint); margin-top: 8px; }
+  main { flex: 1; overflow-y: auto; padding: 12px; -webkit-overflow-scrolling: touch; }
+  #empty { text-align: center; color: var(--faint); padding: 80px 0; }
+  #empty svg { width: 56px; height: 56px; margin-bottom: 12px; opacity: .8; }
+  #empty p { font-size: 14px; }
+  ul { list-style: none; }
+  li {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 4px; border-bottom: 1px solid var(--line-soft);
+  }
+  .check {
+    width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%;
+    border: 2px solid #d4d4d4; background: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all .15s;
+  }
+  .check:active { border-color: var(--muted); }
+  .check svg { width: 14px; height: 14px; opacity: 0; transition: opacity .15s; }
+  li.done .check { background: var(--accent); border-color: var(--accent); }
+  li.done .check svg { opacity: 1; }
+  .label {
+    flex: 1; min-width: 0; text-align: left; border: none; background: none;
+    font-size: 16px; padding: 4px 0; cursor: text; font-family: inherit;
+  }
+  .label .qty { font-size: 14px; font-weight: 600; color: var(--accent); margin-right: 6px; font-variant-numeric: tabular-nums; }
+  .label .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  li.done .label { color: var(--faint); text-decoration: line-through; }
+  li.done .label .qty { color: #6ee7b7; }
+  .label-input {
+    flex: 1; min-width: 0; height: 36px; padding: 0 8px;
+    border: 1px solid #d4d4d4; border-radius: 8px; font-size: 16px; font-family: inherit;
+  }
+  .label-input:focus { outline: none; border-color: var(--fg); }
+  .row-stepper {
+    display: flex; align-items: center; flex-shrink: 0;
+    border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+  }
+  .row-stepper button {
+    height: 28px; width: 28px; border: none; background: none; color: var(--faint);
+    font-size: 15px; font-weight: 500; cursor: pointer;
+  }
+  .row-stepper button:active { background: #fafafa; color: var(--fg); }
+  #qty-badge {
+    height: 28px; min-width: 40px; padding: 0 4px; border: none; background: none;
+    font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
+    color: var(--fg); cursor: pointer;
+  }
+  .del {
+    width: 32px; height: 32px; flex-shrink: 0; border: none; background: none;
+    color: #d4d4d4; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .del:active { color: #ef4444; background: #fef2f2; border-radius: 8px; }
+  .del svg { width: 16px; height: 16px; }
+  footer {
+    border-top: 1px solid var(--line); padding: 10px 20px calc(10px + env(safe-area-inset-bottom));
+    display: flex; justify-content: space-between; align-items: center; background: #fff;
+  }
+  footer button { border: none; background: none; font-size: 14px; font-weight: 500; color: var(--muted); cursor: pointer; }
+  footer button:active { color: var(--fg); }
+  footer .danger { color: #ef4444; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="head-row">
+      <div>
+        <h1>Courses</h1>
+        <p id="summary"></p>
+      </div>
+      <div class="progress-wrap" id="progress-wrap">
+        <div id="count"></div>
+        <div class="progress"><div id="progress-bar"></div></div>
+      </div>
+    </div>
+    <div class="add-row">
+      <div class="stepper">
+        <button type="button" id="qty-minus" aria-label="Diminuer">−</button>
+        <span id="draft-qty"></span>
+        <button type="button" id="qty-plus" aria-label="Augmenter">+</button>
+        <select id="draft-unit" aria-label="Unité"></select>
+      </div>
+      <input id="draft-input" placeholder="Ajouter… (ex : riz 600g)" autocomplete="off" autocapitalize="none">
+      <button id="add-btn" disabled>Ajouter</button>
+    </div>
+    <p class="hint">Astuce : tape « riz 600g » ou « lait 2 l » — la quantité est détectée automatiquement.</p>
+  </header>
+
+  <main>
+    <div id="empty" hidden>
+      <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m-3.367 0h14.134l-.836 9.164a2.25 2.25 0 01-2.24 2.036H8.958a2.25 2.25 0 01-2.24-2.036L5.883 10.5z"/>
+      </svg>
+      <p id="empty-msg"></p>
+    </div>
+    <ul id="list"></ul>
+  </main>
+
+  <footer id="footer" hidden>
+    <button id="toggle-done"></button>
+    <button id="clear-done" class="danger">Vider le panier</button>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var KEY = "ma-liste-de-courses";
+  var UNITS = ["x", "g", "kg", "L"];
+  var UNIT_LABELS = { x: "×", g: "g", kg: "kg", L: "L" };
+
+  function stepFor(u) { return u === "x" ? 1 : u === "g" ? 50 : 0.5; }
+  function minFor(u) { return u === "x" ? 1 : u === "g" ? 50 : 0.1; }
+  function round(q) { return Math.round(q * 100) / 100; }
+  function fmtQty(q, u) {
+    var s = String(round(q)).replace(".", ",");
+    return u === "x" ? s + "×" : s + " " + UNIT_LABELS[u];
+  }
+
+  function parseQty(str) {
+    var m = str.trim().match(/^(.*\S)\s+(\d+(?:[.,]\d+)?)\s*(g|kg|l)\b/i);
+    if (!m) return null;
+    var u = m[3].toLowerCase();
+    var unit = u === "g" ? "g" : u === "kg" ? "kg" : "L";
+    var qty = parseFloat(m[2].replace(",", "."));
+    if (qty > 0 && m[1].length > 0) return { text: m[1].trim(), qty: qty, unit: unit };
+    return null;
+  }
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return [];
+      var arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return [];
+      return arr.map(function (i) {
+        return {
+          id: i.id || (Date.now() + Math.random()).toString(36),
+          text: i.text || "",
+          done: !!i.done,
+          qty: typeof i.qty === "number" && i.qty > 0 ? i.qty : 1,
+          unit: UNITS.indexOf(i.unit) >= 0 ? i.unit : "x",
+          createdAt: i.createdAt || Date.now()
+        };
+      });
+    } catch (e) { return []; }
+  }
+
+  var items = load();
+  var showDone = true;
+  var draftQty = 1;
+  var draftUnit = "x";
+  var editId = null;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var els = {
+    list: $("list"), empty: $("empty"), emptyMsg: $("empty-msg"),
+    summary: $("summary"), count: $("count"), bar: $("progress-bar"),
+    progressWrap: $("progress-wrap"), footer: $("footer"),
+    input: $("draft-input"), add: $("add-btn"),
+    dq: $("draft-qty"), du: $("draft-unit"),
+    minus: $("qty-minus"), plus: $("qty-plus"),
+    toggleDone: $("toggle-done"), clearDone: $("clear-done")
+  };
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(items)); } catch (e) {}
+  }
+
+  // Unit select options
+  UNITS.forEach(function (u) {
+    var o = document.createElement("option");
+    o.value = u; o.textContent = UNIT_LABELS[u];
+    els.du.appendChild(o);
+  });
+
+  function renderDraft() {
+    els.dq.textContent = round(draftQty);
+    els.du.value = draftUnit;
+  }
+
+  function render() {
+    var done = items.filter(function (i) { return i.done; }).length;
+    var remaining = items.length - done;
+
+    if (remaining === 0) {
+      els.summary.textContent = items.length === 0
+        ? "Liste vide — que faut-il acheter ?" : "Tout est dans le panier 🎉";
+    } else {
+      els.summary.textContent = remaining + " article" + (remaining > 1 ? "s" : "") + " à acheter";
+    }
+
+    els.progressWrap.style.display = items.length ? "" : "none";
+    els.count.textContent = done + "/" + items.length;
+    els.bar.style.width = (items.length ? (done / items.length) * 100 : 0) + "%";
+
+    var visible = showDone ? items : items.filter(function (i) { return !i.done; });
+    els.empty.hidden = visible.length > 0;
+    els.emptyMsg.textContent = showDone ? "Aucun article" : "Aucun article à acheter";
+
+    els.footer.hidden = items.length === 0;
+    els.toggleDone.textContent = showDone ? "Masquer cochés" : "Afficher tout" + (done > 0 && !showDone ? " (" + done + ")" : "");
+    els.clearDone.style.display = done > 0 ? "" : "none";
+
+    els.list.innerHTML = "";
+    visible.forEach(function (item) {
+      var li = document.createElement("li");
+      li.className = item.done ? "done" : "";
+
+      // Checkbox
+      var check = document.createElement("button");
+      check.className = "check";
+      check.setAttribute("aria-label", item.done ? "Décocher" : "Cocher");
+      check.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
+      check.onclick = function () {
+        item.done = !item.done; save(); render();
+      };
+      li.appendChild(check);
+
+      if (editId === item.id) {
+        var inp = document.createElement("input");
+        inp.className = "label-input";
+        inp.value = item.text;
+        inp.onblur = inp.onkeydown = function (e) {
+          if (e && e.type === "keydown" && e.key !== "Enter" && e.key !== "Escape") return;
+          if (!e || e.key !== "Escape") {
+            var t = inp.value.trim();
+            if (t) { item.text = t; save(); }
+          }
+          editId = null; render();
+        };
+        li.appendChild(inp);
+      } else {
+        var label = document.createElement("button");
+        label.className = "label";
+        label.innerHTML =
+          '<span class="qty"></span><span class="txt"></span>';
+        label.firstChild.textContent = fmtQty(item.qty, item.unit);
+        label.lastChild.textContent = item.text;
+        label.onclick = function () { editId = item.id; render(); };
+        li.appendChild(label);
+      }
+
+      // Row stepper
+      var step = document.createElement("div");
+      step.className = "row-stepper";
+      var mkBtn = function (txt, fn, aria) {
+        var b = document.createElement("button");
+        b.type = "button"; b.textContent = txt; b.setAttribute("aria-label", aria);
+        b.onclick = fn;
+        return b;
+      };
+      step.appendChild(mkBtn("−", function () {
+        item.qty = round(Math.max(minFor(item.unit), item.qty - stepFor(item.unit)));
+        save(); render();
+      }, "Diminuer"));
+      var badge = document.createElement("button");
+      badge.type = "button"; badge.id = "qty-badge";
+      badge.textContent = fmtQty(item.qty, item.unit);
+      badge.setAttribute("aria-label", "Changer d'unité");
+      badge.onclick = function () {
+        var next = UNITS[(UNITS.indexOf(item.unit) + 1) % UNITS.length];
+        item.unit = next; item.qty = minFor(next);
+        save(); render();
+      };
+      step.appendChild(badge);
+      step.appendChild(mkBtn("+", function () {
+        item.qty = round(Math.min(9999, item.qty + stepFor(item.unit)));
+        save(); render();
+      }, "Augmenter"));
+      li.appendChild(step);
+
+      // Delete
+      var del = document.createElement("button");
+      del.className = "del";
+      del.setAttribute("aria-label", "Supprimer");
+      del.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>';
+      del.onclick = function () {
+        items = items.filter(function (i) { return i.id !== item.id; });
+        save(); render();
+      };
+      li.appendChild(del);
+
+      els.list.appendChild(li);
+
+      // focus edit input after render
+      if (editId === item.id) {
+        var inputs = li.getElementsByTagName("input");
+        if (inputs[0]) { inputs[0].focus(); inputs[0].select(); }
+      }
+    });
+  }
+
+  function addItem() {
+    var text = els.input.value.trim();
+    if (!text) return;
+    var qty = draftQty, unit = draftUnit;
+    var parsed = parseQty(text);
+    if (parsed) { text = parsed.text; qty = parsed.qty; unit = parsed.unit; }
+    var existing = items.find(function (i) {
+      return i.text.toLowerCase() === text.toLowerCase() && i.unit === unit && !i.done;
+    });
+    if (existing) {
+      existing.done = false;
+      existing.qty = round(existing.qty + qty);
+    } else {
+      items.unshift({
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+        text: text, done: false, qty: qty, unit: unit, createdAt: Date.now()
+      });
+    }
+    els.input.value = ""; draftQty = 1; draftUnit = "x";
+    els.add.disabled = true;
+    renderDraft(); save(); render();
+  }
+
+  els.add.onclick = addItem;
+  els.input.addEventListener("input", function () { els.add.disabled = !els.input.value.trim(); });
+  els.input.addEventListener("keydown", function (e) { if (e.key === "Enter") addItem(); });
+  els.minus.onclick = function () {
+    draftQty = round(Math.max(minFor(draftUnit), draftQty - stepFor(draftUnit)));
+    renderDraft();
+  };
+  els.plus.onclick = function () {
+    draftQty = round(draftQty + stepFor(draftUnit));
+    renderDraft();
+  };
+  els.du.onchange = function () {
+    draftUnit = els.du.value;
+    draftQty = minFor(draftUnit);
+    renderDraft();
+  };
+  els.toggleDone.onclick = function () { showDone = !showDone; render(); };
+  els.clearDone.onclick = function () {
+    items = items.filter(function (i) { return !i.done; });
+    save(); render();
+  };
+
+  renderDraft();
+  render();
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js");
+  }
+})();
+</script>
+</body>
+</html>
